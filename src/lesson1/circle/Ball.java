@@ -1,9 +1,13 @@
-package lesson1;
+package lesson1.circle;
+
+import lesson1.common.GameCanvas;
+import lesson1.common.GameObjects;
+import lesson1.common.Sprite;
 
 import java.awt.*;
 import java.util.Random;
 
-public class Ball extends Sprite {
+public class Ball extends Sprite implements GameObjects {
     Random rnd = new Random();
     private final Color color;
     private float vX;
@@ -19,7 +23,7 @@ public class Ball extends Sprite {
 
 
     @Override
-    protected void update(GameCanvas canvas, float deltaTime) {
+    public void update(GameCanvas canvas, float deltaTime) {
         x += vX * deltaTime;
         y += vY * deltaTime;
         if (getLeft() < canvas.getLeft()) {
@@ -41,7 +45,7 @@ public class Ball extends Sprite {
     }
 
     @Override
-    protected void render(GameCanvas canvas, Graphics g) {
+    public void render(GameCanvas canvas, Graphics g) {
         g.setColor(color);
         g.fillOval((int) getLeft(), (int) getTop(), (int) getWidth(), (int) getHeight());
     }

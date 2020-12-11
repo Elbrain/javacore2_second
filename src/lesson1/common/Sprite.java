@@ -1,4 +1,4 @@
-package lesson1;
+package lesson1.common;
 
 import java.awt.*;
 
@@ -46,14 +46,6 @@ public abstract class Sprite {
 
     protected float getHeight() {
         return 2f * halfHeight;
-    }
-
-    protected void update(GameCanvas canvas, float deltaTime) {
-
-    }
-
-    protected void render(GameCanvas canvas, Graphics g) {
-
     }
 
 }

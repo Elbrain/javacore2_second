@@ -1,15 +1,16 @@
-package lesson1;
+package lesson1.common;
+
+import lesson1.circle.MainCircles;
 
 import javax.swing.*;
 import java.awt.*;
 
 public class GameCanvas extends JPanel {
     long lastFrameTime;
-    MainCircles controller;
-    Background background = new Background();
+    GameCanvasListener controller;
 
 
-    public GameCanvas(MainCircles controller) {
+    public GameCanvas(GameCanvasListener controller) {
         lastFrameTime = System.nanoTime();
         this.controller = controller;
     }
@@ -25,7 +26,6 @@ public class GameCanvas extends JPanel {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        background.setBackground(this, deltaTime);
         controller.onDrawFrame(this, g, deltaTime);
         repaint();
     }
