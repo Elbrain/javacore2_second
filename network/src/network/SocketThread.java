@@ -5,18 +5,18 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 
-public class SocketThread extends Thread  {
-    private Socket socket;
-    private final SocketThreadListener  listener;
+public class SocketThread extends Thread {
+    private final SocketThreadListener listener;
+    private final Socket socket;
     private DataOutputStream out;
 
-
-    public SocketThread(SocketThreadListener listener, String name, Socket socket){
+    public SocketThread(SocketThreadListener listener, String name, Socket socket) {
         super(name);
-        this.listener = listener;
         this.socket = socket;
+        this.listener = listener;
         start();
     }
+
     @Override
     public void run() {
         try {
@@ -35,9 +35,11 @@ public class SocketThread extends Thread  {
             listener.onSocketStop(this);
         }
     }
-    public synchronized boolean sendMessage(String msg){
+
+    public synchronized boolean sendMessage(String msg) {
+        //msgformatter, serializer, jsonifier
         try {
-            out.writeUTF(msg );
+            out.writeUTF(msg);
             out.flush();
             return true;
         } catch (IOException e) {
@@ -47,12 +49,7 @@ public class SocketThread extends Thread  {
         }
     }
 
-    public void close(){
-        try {
-            out.close();
-        } catch (IOException e) {
-            listener.onSocketException(this, e);
-        }
+    public synchronized void close() {
         interrupt();
         try {
             socket.close();

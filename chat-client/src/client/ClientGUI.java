@@ -1,5 +1,6 @@
 package client;
 
+import library.Protocol;
 import network.SocketThread;
 import network.SocketThreadListener;
 
@@ -7,16 +8,15 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.Socket;
 
-public class ClientGUI extends JFrame implements ActionListener, Thread.UncaughtExceptionHandler, KeyListener, SocketThreadListener {
-    private static final int POS_X = 400;
-    private static final int POS_Y = 200;
-    private static final int WIDTH = 700;
-    private static final int HEIGHT = 600;
+public class ClientGUI extends JFrame implements ActionListener,
+        Thread.UncaughtExceptionHandler, SocketThreadListener {
+
+    private static final int WIDTH = 600;
+    private static final int HEIGHT = 450;
 
     private final JTextArea log = new JTextArea();
 
@@ -34,6 +34,7 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
     private final JButton btnSend = new JButton("Send");
 
     private final JList<String> userList = new JList<>();
+    private boolean shownIoErrors = false;
     private SocketThread socketThread;
 
     public static void main(String[] args) {
@@ -49,19 +50,20 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         Thread.setDefaultUncaughtExceptionHandler(this);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        setBounds(POS_X, POS_Y, WIDTH, HEIGHT);
+        setSize(WIDTH, HEIGHT);
         log.setEditable(false);
+        log.setLineWrap(true);
         JScrollPane scrollLog = new JScrollPane(log);
         JScrollPane scrollUsers = new JScrollPane(userList);
         String[] users = {"user1", "user2", "user3", "user4", "user5", "user6",
                 "user_with_an_exceptionally_long_nickname"};
         userList.setListData(users);
-        scrollUsers.setPreferredSize(new Dimension(150, 0));
+        scrollUsers.setPreferredSize(new Dimension(100, 0));
         cbAlwaysOnTop.addActionListener(this);
         btnSend.addActionListener(this);
-        tfMessage.addKeyListener(this);
-        btnDisconnect.addActionListener(this);
+        tfMessage.addActionListener(this);
         btnLogin.addActionListener(this);
+        btnDisconnect.addActionListener(this);
 
         panelTop.add(tfIPAddress);
         panelTop.add(tfPort);
@@ -69,63 +71,17 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         panelTop.add(tfLogin);
         panelTop.add(tfPassword);
         panelTop.add(btnLogin);
-
-
-        add(scrollLog, BorderLayout.CENTER);
-        add(scrollUsers, BorderLayout.EAST);
-        add(panelTop, BorderLayout.NORTH);
-        add(panelBottom, BorderLayout.SOUTH);
         panelBottom.add(btnDisconnect, BorderLayout.WEST);
         panelBottom.add(tfMessage, BorderLayout.CENTER);
         panelBottom.add(btnSend, BorderLayout.EAST);
         panelBottom.setVisible(false);
 
+        add(scrollLog, BorderLayout.CENTER);
+        add(scrollUsers, BorderLayout.EAST);
+        add(panelTop, BorderLayout.NORTH);
+        add(panelBottom, BorderLayout.SOUTH);
+
         setVisible(true);
-
-    }
-
-    private  void showBottomPanel(){
-        panelBottom.setVisible(true);
-        panelTop.setVisible(false);
-        log.append("User connected\n");
-
-    }
-
-    private void hideBottomPanel(){
-        log.append("\nUser disconnected\n");
-        panelBottom.setVisible(false);
-        panelTop.setVisible(true);
-    }
-
-    private void sendMessage() {
-        String msg = tfMessage.getText();
-       String username = tfLogin.getText();
-        if ("".equals(msg)) return;
-        tfMessage.setText(null);
-        tfMessage.grabFocus();
-        socketThread.sendMessage(msg);
-//        putLog(String.format("%s: %s", username, msg));
-//        wrtMsgToLogFile(msg, username);
-    }
-
-    public void disconnect() {
-        //закрытия потока для записи в файл
-        hideBottomPanel();
-        socketThread.close();
-
-
-        //System.exit(1);
-    }
-
-    private void putLog(String msg) {
-        if ("".equals(msg)) return;
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                log.append(msg + "\n");
-                log.setCaretPosition(log.getDocument().getLength());
-            }
-        });
     }
 
     @Override
@@ -137,10 +93,9 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
             sendMessage();
         } else if (src == btnLogin) {
             connect();
-        }
-        else if (src == btnDisconnect) {
-            disconnect();
-        }else {
+        } else if (src == btnDisconnect) {
+            socketThread.close();
+        } else {
             throw new RuntimeException("Undefined source: " + src);
         }
     }
@@ -149,12 +104,46 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         try {
             Socket s = new Socket(tfIPAddress.getText(), Integer.parseInt(tfPort.getText()));
             socketThread = new SocketThread(this, "Client", s);
-            showBottomPanel();
+            //socketThread.sendMessage(Protocol.getAuthRequest(
+              //      tfLogin.getText(), new String(tfPassword.getPassword())));
         } catch (IOException e) {
             e.printStackTrace();
             showException(Thread.currentThread(), e);
         }
+    }
 
+    private void sendMessage() {
+        String msg = tfMessage.getText();
+//        String username = tfLogin.getText();
+        if ("".equals(msg)) return;
+        tfMessage.setText(null);
+        tfMessage.grabFocus();
+        socketThread.sendMessage(msg);
+//        putLog(String.format("%s: %s", username, msg));
+//        wrtMsgToLogFile(msg, username);
+    }
+
+    private void wrtMsgToLogFile(String msg, String username) {
+        try (FileWriter out = new FileWriter("log.txt", true)) {
+            out.write(username + ": " + msg + "\n");
+            out.flush();
+        } catch (IOException e) {
+            if (!shownIoErrors) {
+                shownIoErrors = true;
+                showException(Thread.currentThread(), e);
+            }
+        }
+    }
+
+    private void putLog(String msg) {
+        if ("".equals(msg)) return;
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                log.append(msg + "\n");
+                log.setCaretPosition(log.getDocument().getLength());
+            }
+        });
     }
 
     private void showException(Thread t, Throwable e) {
@@ -177,22 +166,9 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
         System.exit(1);
     }
 
-    @Override
-    public void keyTyped(KeyEvent e) {
-
-    }
-
-    @Override
-    public void keyPressed(KeyEvent e) {
-
-    }
-
-    @Override
-    public void keyReleased(KeyEvent e) {
-//        if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-//            sendMessage();
-//        }
-    }
+    /**
+     * Socket thread listener methods implementation
+     * */
 
     @Override
     public void onSocketStart(SocketThread thread, Socket socket) {
@@ -202,11 +178,16 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
     @Override
     public void onSocketStop(SocketThread thread) {
         putLog("Socket stopped");
+        panelBottom.setVisible(false);
+        panelTop.setVisible(true);
+
     }
 
     @Override
     public void onSocketReady(SocketThread thread, Socket socket) {
         putLog("Socket ready");
+        panelBottom.setVisible(true);
+        panelTop.setVisible(false);
     }
 
     @Override
@@ -218,4 +199,5 @@ public class ClientGUI extends JFrame implements ActionListener, Thread.Uncaught
     public void onSocketException(SocketThread thread, Exception exception) {
         exception.printStackTrace();
     }
+
 }
